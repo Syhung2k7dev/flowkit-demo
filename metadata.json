@@ -1,0 +1,6 @@
+{
+  "name": "FlowKit",
+  "description": "Hybrid AI Video Production & Workflow Orchestration Platform with Multi-Channel Governance, AIGG, CASL, and Approval Center.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,209 @@
+{
+  "entities": {
+    "GlobalPolicyDoc": {
+      "title": "GlobalPolicyDoc",
+      "description": "Top-level system-wide governance policy inherited by all channels.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner UID matching request.auth.uid." },
+        "version": { "type": "string", "description": "Semantic version string." },
+        "minResolution": { "type": "string", "enum": ["480p", "720p", "1080p", "4K"] },
+        "requireRightsCheck": { "type": "boolean" },
+        "requireOwnerApprovalForPrompts": { "type": "boolean" },
+        "textGen": { "type": "string", "enum": ["ALLOW", "DENY", "REQUIRE_APPROVAL"] },
+        "imageGen": { "type": "string", "enum": ["ALLOW", "DENY", "REQUIRE_APPROVAL"] },
+        "videoGen": { "type": "string", "enum": ["ALLOW", "DENY", "REQUIRE_APPROVAL"] },
+        "audioGen": { "type": "string", "enum": ["ALLOW", "DENY", "REQUIRE_APPROVAL"] },
+        "aiAnalysis": { "type": "string", "enum": ["ALLOW", "DENY", "REQUIRE_APPROVAL"] },
+        "aiEnhancement": { "type": "string", "enum": ["ALLOW", "DENY", "REQUIRE_APPROVAL"] },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Client submits FieldValue.serverTimestamp()." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Client submits FieldValue.serverTimestamp()." }
+      },
+      "required": [
+        "userId", "version", "minResolution", "requireRightsCheck", "requireOwnerApprovalForPrompts",
+        "textGen", "imageGen", "videoGen", "audioGen", "aiAnalysis", "aiEnhancement",
+        "createdAt", "updatedAt"
+      ]
+    },
+    "ChannelDoc": {
+      "title": "ChannelDoc",
+      "description": "Independent content channel with Constitution (System Prompt), AIGG policy overrides, and Style Profile.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "systemPrompt": { "type": "string" },
+        "promptVersion": { "type": "string" },
+        "previousSystemPrompt": { "type": "string" },
+        "minResolution": { "type": "string", "enum": ["720p", "1080p", "4K"] },
+        "editingPriority": { "type": "string", "enum": ["EDITING_FIRST", "HYBRID_BALANCED", "GENERATIVE_FIRST"] },
+        "textGen": { "type": "string", "enum": ["ALLOW", "DENY", "REQUIRE_APPROVAL", "INHERIT"] },
+        "imageGen": { "type": "string", "enum": ["ALLOW", "DENY", "REQUIRE_APPROVAL", "INHERIT"] },
+        "videoGen": { "type": "string", "enum": ["ALLOW", "DENY", "REQUIRE_APPROVAL", "INHERIT"] },
+        "audioGen": { "type": "string", "enum": ["ALLOW", "DENY", "REQUIRE_APPROVAL", "INHERIT"] },
+        "aiAnalysis": { "type": "string", "enum": ["ALLOW", "DENY", "REQUIRE_APPROVAL", "INHERIT"] },
+        "aiEnhancement": { "type": "string", "enum": ["ALLOW", "DENY", "REQUIRE_APPROVAL", "INHERIT"] },
+        "styleVisual": { "type": "string" },
+        "styleTempo": { "type": "string" },
+        "styleAudio": { "type": "string" },
+        "styleConfidence": { "type": "integer" },
+        "productionsCount": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId", "name", "category", "description", "systemPrompt", "promptVersion",
+        "previousSystemPrompt", "minResolution", "editingPriority",
+        "textGen", "imageGen", "videoGen", "audioGen", "aiAnalysis", "aiEnhancement",
+        "styleVisual", "styleTempo", "styleAudio", "styleConfidence", "productionsCount",
+        "createdAt", "updatedAt"
+      ]
+    },
+    "WorkflowDoc": {
+      "title": "WorkflowDoc",
+      "description": "CASL-driven hybrid production workflow definition and persistent execution state.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "channelId": { "type": "string" },
+        "channelName": { "type": "string" },
+        "name": { "type": "string" },
+        "triggerType": { "type": "string", "enum": ["MANUAL", "SCHEDULED", "EVENT", "CONDITIONAL"] },
+        "lifecycleState": { "type": "string", "enum": ["CREATED", "VALIDATED", "RUNNING", "AWAITING_APPROVAL", "PAUSED", "COMPLETED", "FAILED"] },
+        "branchMode": { "type": "string", "enum": ["EDITING_ONLY", "GENERATIVE_ONLY", "HYBRID"] },
+        "caslJson": { "type": "string" },
+        "currentStepIndex": { "type": "integer" },
+        "totalSteps": { "type": "integer" },
+        "lastQualityGate": { "type": "string", "enum": ["NONE", "PASS", "PASS_WITH_WARNINGS", "NEEDS_REVIEW", "FAIL"] },
+        "lastTraceSummary": { "type": "string" },
+        "version": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId", "channelId", "channelName", "name", "triggerType", "lifecycleState",
+        "branchMode", "caslJson", "currentStepIndex", "totalSteps", "lastQualityGate",
+        "lastTraceSummary", "version", "createdAt", "updatedAt"
+      ]
+    },
+    "SkillDoc": {
+      "title": "SkillDoc",
+      "description": "Encapsulated execution skill across Levels 0-3 with AIGG permission declaration and fallback.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "level": { "type": "string", "enum": ["LEVEL_0_PRIMITIVE", "LEVEL_1_FUNCTIONAL", "LEVEL_2_COMPOSITE", "LEVEL_3_PRODUCTION"] },
+        "branch": { "type": "string", "enum": ["EDITING", "GENERATIVE", "ANALYSIS", "QUALITY"] },
+        "requiredCapability": { "type": "string", "enum": ["NONE", "TEXT_GENERATION", "IMAGE_GENERATION", "VIDEO_GENERATION", "AUDIO_GENERATION", "AI_ENHANCEMENT", "AI_ANALYSIS"] },
+        "fallbackStrategy": { "type": "string" },
+        "inputSchemaSummary": { "type": "string" },
+        "outputSchemaSummary": { "type": "string" },
+        "version": { "type": "string" },
+        "enabled": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": [
+        "userId", "name", "level", "branch", "requiredCapability", "fallbackStrategy",
+        "inputSchemaSummary", "outputSchemaSummary", "version", "enabled", "createdAt", "updatedAt"
+      ]
+    },
+    "AssetDoc": {
+      "title": "AssetDoc",
+      "description": "Media or reference asset with quality score, rights verification, and provenance chain.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "channelId": { "type": "string" },
+        "title": { "type": "string" },
+        "assetType": { "type": "string", "enum": ["VIDEO", "IMAGE", "AUDIO", "PROJECT", "GENERATED", "TEMPLATE", "REFERENCE", "METADATA"] },
+        "resolution": { "type": "string" },
+        "qualityScore": { "type": "integer" },
+        "rightsStatus": { "type": "string", "enum": ["VERIFIED", "RESTRICTED", "UNKNOWN"] },
+        "provenanceChain": { "type": "string" },
+        "tags": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": [
+        "userId", "channelId", "title", "assetType", "resolution", "qualityScore",
+        "rightsStatus", "provenanceChain", "tags", "createdAt", "updatedAt"
+      ]
+    },
+    "ApprovalProposalDoc": {
+      "title": "ApprovalProposalDoc",
+      "description": "Governance change proposal or AIGG execution gate awaiting owner decision.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "channelId": { "type": "string" },
+        "targetType": { "type": "string", "enum": ["SYSTEM_PROMPT", "POLICY", "GENERATION_GATE", "WORKFLOW_RESUME", "STYLE_PROFILE", "EXCEPTION"] },
+        "targetId": { "type": "string" },
+        "title": { "type": "string" },
+        "currentValue": { "type": "string" },
+        "proposedValue": { "type": "string" },
+        "reason": { "type": "string" },
+        "impactScope": { "type": "string" },
+        "riskLevel": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH"] },
+        "proposer": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED"] },
+        "versionTag": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": [
+        "userId", "channelId", "targetType", "targetId", "title", "currentValue",
+        "proposedValue", "reason", "impactScope", "riskLevel", "proposer", "status",
+        "versionTag", "createdAt", "updatedAt"
+      ]
+    },
+    "AuditLogDoc": {
+      "title": "AuditLogDoc",
+      "description": "Immutable governance and execution trace log.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "eventType": { "type": "string" },
+        "actor": { "type": "string" },
+        "channelId": { "type": "string" },
+        "summary": { "type": "string" },
+        "severity": { "type": "string", "enum": ["INFO", "WARNING", "CRITICAL"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "eventType", "actor", "channelId", "summary", "severity", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/global_policy/{policyId}": {
+      "schema": { "$ref": "#/entities/GlobalPolicyDoc" },
+      "description": "Per-user FlowKit Global Policy document."
+    },
+    "/users/{userId}/channels/{channelId}": {
+      "schema": { "$ref": "#/entities/ChannelDoc" },
+      "description": "Channels owned by the authenticated user."
+    },
+    "/users/{userId}/workflows/{workflowId}": {
+      "schema": { "$ref": "#/entities/WorkflowDoc" },
+      "description": "Production workflows owned by the authenticated user."
+    },
+    "/users/{userId}/skills/{skillId}": {
+      "schema": { "$ref": "#/entities/SkillDoc" },
+      "description": "Registered FlowKit skills owned by the authenticated user."
+    },
+    "/users/{userId}/assets/{assetId}": {
+      "schema": { "$ref": "#/entities/AssetDoc" },
+      "description": "Media, reference, and generated assets owned by the authenticated user."
+    },
+    "/users/{userId}/proposals/{proposalId}": {
+      "schema": { "$ref": "#/entities/ApprovalProposalDoc" },
+      "description": "Governance approval proposals owned by the authenticated user."
+    },
+    "/users/{userId}/audit_logs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLogDoc" },
+      "description": "Append-only governance and workflow execution audit logs."
+    }
+  }
+}

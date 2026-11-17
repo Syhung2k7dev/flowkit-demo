@@ -1,0 +1,2211 @@
+# **FLOWKIT**
+
+## **ĐẶC TẢ KIẾN TRÚC HỆ THỐNG TỔNG THỂ**
+
+Architecture Specification
+
+Consolidated Edition
+
+Version 1.0
+
+**Mục tiêu:** Xây dựng FlowKit thành một nền tảng điều phối sản xuất nội dung thông minh, có khả năng quản lý nhiều kênh, tự động hóa quy trình, sử dụng AI và công cụ bên ngoài, quản lý tài nguyên, học hỏi từ kết quả và phát triển lâu dài mà không phải viết lại lõi hệ thống.
+
+Tài liệu này hợp nhất các quyết định kiến trúc đã thống nhất, đặc biệt là:
+
+- Global Policy kế thừa xuống từng Channel.
+- Channel System Prompt đóng vai trò hiến chương định hướng của kênh.
+- Governance Core quản lý quyền hạn, phê duyệt và phiên bản.
+- AI Generation Governance sử dụng quyền granular, strict approval và automatic fallback.
+- CASL là ngôn ngữ kịch bản điều khiển logic.
+- Workflow Engine điều phối công việc dựa trên thời gian, trạng thái và điều kiện.
+- Skill Engine thực thi những năng lực nghiệp vụ độc lập.
+- AI Core quản lý kết nối và thực thi các AI Provider.
+- Asset và Memory có cơ chế lưu trữ, truy xuất và liên kết thống nhất.
+
+Đây là đặc tả kiến trúc mục tiêu, không phải tuyên bố rằng các thành phần đã được lập trình hoặc nghiệm thu.
+
+# **PHẦN I — TẦM NHÌN VÀ NGUYÊN TẮC KIẾN TRÚC**
+
+## **1. Tầm nhìn sản phẩm**
+
+FlowKit là một nền tảng Hybrid AI Video Production & Workflow Orchestration.
+
+Hệ thống không đơn thuần là một ứng dụng tạo video bằng AI, cũng không chỉ là một trình chỉnh sửa video tự động.
+
+FlowKit kết hợp:
+
+1. AI phân tích và suy luận.
+2. Công cụ xử lý media truyền thống.
+3. AI tạo sinh.
+4. Kho tài nguyên và dữ liệu.
+5. Ngôn ngữ kịch bản điều khiển.
+6. Workflow Engine.
+7. Skill Engine.
+8. Hệ thống quản trị và phê duyệt.
+9. Hệ thống đánh giá, học hỏi và cải tiến.
+
+Mục tiêu là cho phép người dùng xây dựng nhiều dây chuyền sản xuất nội dung độc lập, mỗi dây chuyền có chính sách, tài nguyên, phong cách và quy trình riêng.
+
+### **1.1. Triết lý thiết kế**
+
+FlowKit phải tuân thủ các nguyên tắc:
+
+- **Workflow-driven:** Mọi công việc được tổ chức và điều phối bằng Workflow.
+- **Scriptable:** Logic nghiệp vụ phải có thể biểu diễn bằng CASL.
+- **Skill-based:** Năng lực được đóng gói thành các Skill độc lập.
+- **Hybrid execution:** Kết hợp xử lý truyền thống và AI tạo sinh.
+- **Policy-governed:** Mọi hoạt động đều chịu sự quản lý của Governance.
+- **Human-controlled:** Người dùng giữ quyền kiểm soát các quyết định quan trọng.
+- **Version-controlled:** Thay đổi phải có lịch sử, phiên bản và khả năng phục hồi.
+- **Extensible:** Có thể bổ sung Skill, Provider, Workflow và công nghệ mới mà không thay đổi lõi hệ thống.
+
+## **2. Phạm vi chức năng**
+
+## **FlowKit Platform**
+
+**Orchestration**
+
+Workflow, Scheduler, CASL
+
+**Intelligence**
+
+AI Core, Vision, Analysis
+
+**Production**
+
+Editing, Generative, Media
+
+**Governance**
+
+Policies, Permissions, Approval
+
+**Data Management**
+
+Assets, Memory, Provenance
+
+**Version Control**
+
+Changes, PR, Rollback
+
+Phạm vi chính:
+
+| Nhóm                  | Khả năng                            |
+| --------------------- | ----------------------------------- |
+| Channel Management    | Quản lý nhiều kênh nội dung         |
+| Production Management | Quản lý dự án và sản phẩm video     |
+| Workflow Management   | Tạo và vận hành quy trình           |
+| Skill Management      | Quản lý năng lực thực thi           |
+| AI Management         | Quản lý AI và Provider              |
+| Generation Governance | Kiểm soát AI tạo sinh               |
+| Asset Management      | Quản lý footage, hình ảnh, âm thanh |
+| Editing Intelligence  | Phân tích và học phong cách dựng    |
+| Memory Management     | Lưu trữ và truy xuất tri thức       |
+| Version Control       | Quản lý thay đổi và phê duyệt       |
+| Monitoring            | Giám sát và đánh giá                |
+
+## **3. Kiến trúc phân tầng**
+
+FlowKit sử dụng kiến trúc module hóa, phân tầng theo trách nhiệm, với các giao tiếp thông qua interface và event contract.
+
+**Presentation Layer**
+
+Dashboard · Channel Manager · Workflow Editor · Approval Center
+
+**Application Layer**
+
+Project Management · Production Management · Command Handling
+
+**Orchestration Layer**
+
+Workflow Engine · CASL Runtime · Scheduler · Skill Engine
+
+**Governance & Intelligence Layer**
+
+Governance Core · AIGG · AI Core · Policy Resolver
+
+**Execution Layer**
+
+Editing Engine · Generative Engine · Media Engine · External Tools
+
+**Data Layer**
+
+Asset Repository · Memory · Registry · Version Store · Audit
+
+Đây là phân tầng logic. Không bắt buộc mỗi tầng phải là một server hoặc một tiến trình độc lập. Việc phân tách vật lý được quyết định dựa trên tải, độ tin cậy và khả năng triển khai.
+
+# **PHẦN II — MULTI-CHANNEL GOVERNANCE**
+
+## **4. Hệ thống Global Policy và Channel Policy**
+
+Đã chốt
+
+FlowKit sử dụng mô hình chính sách toàn cục kết hợp chính sách riêng từng kênh.
+
+### **4.1. Global Policy**
+
+Global Policy là lớp chính sách cấp cao nhất.
+
+Nó quản lý:
+
+- Nguyên tắc vận hành toàn hệ thống.
+- Quyền hạn và bảo mật.
+- Công nghệ được phép sử dụng.
+- Những giới hạn AI.
+- Quy định tài nguyên.
+- Các tiêu chuẩn chung.
+- Quy tắc phê duyệt.
+- Quy tắc dữ liệu và lưu trữ.
+
+Global Policy không phải nơi chứa mọi yêu cầu sản xuất cụ thể của từng kênh.
+
+### **4.2. Channel Policy**
+
+Mỗi Channel có một bộ chính sách riêng.
+
+Ví dụ:
+
+**Global Policy**
+
+Chính sách chung của FlowKit
+
+**Gameplay Channel**
+
+- Gameplay footage
+- Ưu tiên 720p+
+- Phong cách dựng riêng
+- Hạn chế AI tạo sinh
+
+**AI Story Channel**
+
+- AI-generated visuals
+- Quy định phong cách
+- Quy định giọng đọc
+- Tiêu chuẩn chất lượng riêng
+
+Channel Policy được phép bổ sung hoặc siết chặt chính sách Global. Không được tự ý nới lỏng một giới hạn cấp Global.
+
+### **4.3. Channel System Prompt – Channel Constitution**
+
+Đây là phần đặc biệt quan trọng.
+
+Mỗi kênh có một System Prompt đóng vai trò kim chỉ nam.
+
+Nó mô tả:
+
+- Mục đích và định hướng của kênh.
+- Đối tượng nội dung.
+- Nguồn tài nguyên được sử dụng.
+- Tiêu chuẩn chất lượng video.
+- Phong cách hình ảnh và dựng.
+- Quy định sử dụng AI.
+- Quy định về nội dung.
+- Tiêu chuẩn đầu ra.
+
+Tuy nhiên, System Prompt không được là nguồn kiểm soát quyền duy nhất.
+
+Các quy định quan trọng phải được biểu diễn thành Policy có cấu trúc để máy có thể kiểm tra và thực thi.
+
+**Quan hệ giữa chúng:**
+
+| Thành phần            | Vai trò                      |
+| --------------------- | ---------------------------- |
+| Channel System Prompt | Giải thích định hướng cho AI |
+| Channel Policy        | Quy tắc máy có thể kiểm tra  |
+| Style Registry        | Lưu hồ sơ phong cách         |
+| Quality Policy        | Tiêu chuẩn chất lượng        |
+| AI Generation Policy  | Quyền sử dụng AI             |
+
+### **4.4. Quản lý thay đổi System Prompt**
+
+Quy trình:
+
+Draft → Review → Simulation → Approval → Publish → Monitor → Rollback.
+
+AI có thể:
+
+- Đọc System Prompt.
+- Phân tích dữ liệu sản xuất.
+- Phát hiện bất cập.
+- Đề xuất sửa đổi.
+- So sánh các phiên bản.
+- Mô phỏng ảnh hưởng.
+
+AI không được tự xuất bản thay đổi.
+
+Mọi thay đổi chính thức phải có phê duyệt của chủ sở hữu.
+
+## **5. Governance Core**
+
+Governance Core là cơ quan quản trị trung tâm.
+
+Các module:
+
+| Module             | Trách nhiệm                    |
+| ------------------ | ------------------------------ |
+| Policy Registry    | Lưu chính sách                 |
+| Policy Resolver    | Giải quyết kế thừa và xung đột |
+| Permission Manager | Quản lý quyền                  |
+| Approval Manager   | Phê duyệt                      |
+| Version Manager    | Phiên bản                      |
+| Exception Manager  | Ngoại lệ                       |
+| Simulation Engine  | Mô phỏng tác động              |
+| Audit Manager      | Nhật ký quản trị               |
+| Dependency Graph   | Quan hệ phụ thuộc              |
+
+### **5.1. Quy tắc chính sách**
+
+Các trạng thái:
+
+- ALLOW.
+- DENY.
+- REQUIRE_APPROVAL.
+- INHERIT.
+
+Quy tắc:
+
+1. DENY không thể bị cấp thấp hơn ghi đè.
+2. REQUIRE_APPROVAL phải được xử lý trước khi thực thi.
+3. INHERIT lấy giá trị từ cấp trên.
+4. Không xác định được quyền thì mặc định từ chối.
+5. Global Policy có quyền giới hạn toàn hệ thống.
+6. Channel Policy có thể siết chặt quyền của Channel.
+7. Workflow và Skill không được tự cấp quyền cho mình.
+
+### **5.2. Approval Governance**
+
+Hệ thống quản lý phê duyệt theo yêu cầu, không hỏi người dùng liên tục cho những hành động thông thường đã được cho phép.
+
+Những thay đổi cần duyệt:
+
+- Thay đổi chính sách.
+- Thay đổi quyền AI.
+- Mở rộng nguồn tài nguyên.
+- Thay đổi định hướng Channel.
+- Thay đổi Provider được phép.
+- Tạo ngoại lệ.
+- Thay đổi tiêu chuẩn chất lượng quan trọng.
+
+Mỗi Approval gắn với một phiên bản nội dung cụ thể. Nếu nội dung thay đổi sau khi duyệt, phải duyệt lại.
+
+# **PHẦN III — AI GENERATION GOVERNANCE**
+
+## **6. AIGG – AI Generation Governance**
+
+Đã chốt đầy đủ 3 quyết định
+
+| Quyết định     | Giá trị            |
+| -------------- | ------------------ |
+| Quyền tạo sinh | Granular           |
+| Phê duyệt      | Strict             |
+| Khi bị cấm     | Automatic Fallback |
+
+AIGG là module chính thức thuộc Governance Core.
+
+Nó kiểm soát quyền sử dụng AI tạo sinh trên toàn hệ thống.
+
+### **6.1. Phân loại năng lực AI**
+
+| Loại                  | Chức năng             |
+| --------------------- | --------------------- |
+| TEXT_GENERATION       | Tạo văn bản           |
+| IMAGE_GENERATION      | Tạo hình ảnh          |
+| VIDEO_GENERATION      | Tạo video             |
+| AUDIO_GENERATION      | Tạo âm thanh          |
+| THREE_D_GENERATION    | Tạo tài nguyên 3D     |
+| AI_ENHANCEMENT        | Tăng cường chất lượng |
+| AI_ANALYSIS           | Phân tích nội dung    |
+| AI_EDITING_ASSISTANCE | Hỗ trợ biên tập       |
+
+Ba nhóm hoạt động cốt lõi:
+
+- ANALYSIS: phân tích và nhận thức.
+- TRANSFORMATION: biến đổi tài nguyên có sẵn.
+- GENERATION: tạo nội dung mới.
+
+Ba nhóm này phải được phân biệt trong Permission Registry.
+
+### **6.2. Granular Permission**
+
+Quyền được cấu hình theo:
+
+- Channel.
+- Workflow.
+- Skill.
+- Loại năng lực AI.
+- Công đoạn sản xuất.
+- Loại tài nguyên.
+- Provider và Model.
+- Mục đích sử dụng.
+
+Ví dụ: một kênh cho phép AI phân tích gameplay, viết kịch bản và tạo thumbnail, nhưng cấm tạo footage gameplay.
+
+### **6.3. AI Execution Gateway**
+
+Mọi yêu cầu AI phải đi qua Gateway.
+
+Gateway thực hiện:
+
+1. Nhận yêu cầu.
+2. Xác thực nguồn gọi.
+3. Kiểm tra Channel và Workflow.
+4. Đọc Policy Snapshot.
+5. Xác định quyền.
+6. Kiểm tra Approval.
+7. Kiểm tra Provider và Model.
+8. Kiểm tra dữ liệu đầu vào.
+9. Cho phép hoặc từ chối.
+10. Ghi nhận hoạt động.
+
+Không được gọi Provider trực tiếp từ Skill để vượt qua Gateway.
+
+### **6.4. Automatic Fallback**
+
+Khi yêu cầu bị cấm:
+
+1. Xác định lý do bị từ chối.
+2. Tìm phương án thay thế trong Fallback Registry.
+3. Kiểm tra quyền của phương án thay thế.
+4. Kiểm tra tài nguyên và chất lượng.
+5. Thực thi nếu hợp lệ.
+6. Nếu không có phương án phù hợp, dừng công đoạn và thông báo.
+
+Không được tự động đổi Provider để né chính sách.
+
+Ví dụ:
+
+| Yêu cầu              | Fallback                         |
+| -------------------- | -------------------------------- |
+| Tạo footage gameplay | Footage từ thư viện được duyệt   |
+| Tạo giọng đọc        | Audio có sẵn                     |
+| Tạo thumbnail        | Template được duyệt              |
+| Tạo cảnh chuyển tiếp | Media Engine                     |
+| AI upscale           | Phương pháp xử lý khác được phép |
+
+### **6.5. Model Registry**
+
+Quản lý:
+
+- Provider.
+- Model ID.
+- Loại năng lực.
+- Input/Output.
+- Giới hạn.
+- Chi phí.
+- Trạng thái.
+- Phiên bản Adapter.
+- Điều kiện sử dụng.
+- Chính sách dữ liệu.
+
+AIGG quyết định có được sử dụng Model hay không. AI Core chịu trách nhiệm thực thi kết nối.
+
+### **6.6. Output Validation**
+
+Output không được đưa thẳng vào sản phẩm.
+
+Phải kiểm tra:
+
+- Định dạng.
+- Chất lượng.
+- Chính sách nội dung.
+- Quyền sử dụng.
+- Tính toàn vẹn.
+- Nguồn gốc.
+- Yêu cầu đầu ra của Workflow.
+
+### **6.7. Generation Provenance**
+
+Mỗi tài nguyên AI tạo sinh phải có thông tin:
+
+- Asset ID.
+- Model và Provider.
+- Prompt.
+- Input Asset.
+- Workflow ID.
+- Skill ID.
+- Policy Version.
+- Approval ID nếu có.
+- Thời điểm tạo.
+- Kết quả kiểm định.
+
+# **PHẦN IV — AI CORE VÀ HYBRID PRODUCTION**
+
+## **7. AI Core**
+
+AI Core là lớp quản lý các AI Provider và khả năng suy luận.
+
+Nó không quyết định chính sách của Channel và không tự quyết định được quyền tạo sinh.
+
+### **7.1. Provider Adapter**
+
+Mỗi nhà cung cấp được kết nối thông qua Adapter thống nhất.
+
+Trách nhiệm:
+
+- Chuẩn hóa request.
+- Chuẩn hóa response.
+- Quản lý xác thực.
+- Mapping tham số.
+- Mapping lỗi.
+- Quản lý modality.
+- Theo dõi giới hạn Provider.
+
+Mục tiêu là có thể thay đổi Provider mà không phải viết lại Workflow hoặc Skill.
+
+### **7.2. Connection Runtime**
+
+Quản lý:
+
+- Kết nối.
+- Timeout.
+- Retry.
+- Backoff.
+- Rate Limit.
+- Error Handling.
+- Cancellation.
+- Connection State.
+
+Không retry vô hạn và không retry những lỗi không thể phục hồi.
+
+### **7.3. Model Routing**
+
+Model Router lựa chọn Model dựa trên:
+
+- Năng lực yêu cầu.
+- Chất lượng.
+- Chi phí.
+- Tốc độ.
+- Tính khả dụng.
+- Chính sách.
+- Loại dữ liệu.
+
+Model Router chỉ lựa chọn trong phạm vi được Governance cho phép.
+
+### **7.4. AI Task Classification**
+
+Mỗi yêu cầu AI cần được xác định:
+
+- Task Type.
+- Input Modality.
+- Output Modality.
+- Required Capability.
+- Quality Requirement.
+- Permission Scope.
+- Execution Priority.
+
+Điều này giúp hệ thống không sử dụng một model lớn cho mọi tác vụ.
+
+## **8. Hybrid Production Architecture**
+
+Định hướng kiến trúc đã xác lập
+
+FlowKit có hai nhánh sản xuất chính, phối hợp với nhau thông qua Workflow Engine.
+
+## **Hybrid Production System**
+
+**Production Workflow**
+
+Nhận yêu cầu và điều phối sản xuất
+
+**A. Editing Branch**
+
+Existing Assets
+
+- Footage
+- Hình ảnh
+- Audio
+- Editing Skills
+- Media Engine
+- Template
+
+**B. Generative Branch**
+
+AI Generation
+
+- Image Generation
+- Video Generation
+- Audio Generation
+- Synthetic Assets
+- AI Enhancement
+- AI Providers
+
+**Unified Production Pipeline**
+
+Hợp nhất tài nguyên và kết quả từ các nhánh
+
+**Quality Control → Final Output**
+
+### **8.1. Editing Branch**
+
+Tập trung xử lý tài nguyên đã có.
+
+Các khả năng:
+
+- Phân tích video.
+- Nhận diện cảnh.
+- Scene Detection.
+- Shot Classification.
+- Object Detection.
+- Audio Analysis.
+- Timeline Generation.
+- Automatic Cutting.
+- Transition.
+- Audio Synchronization.
+- Color Processing.
+- Subtitle Integration.
+- Video Rendering.
+
+Công nghệ thực thi có thể sử dụng FFmpeg, OpenCV và các công cụ media chuyên dụng.
+
+### **8.2. Generative Branch**
+
+Tập trung tạo tài nguyên mới.
+
+Các khả năng:
+
+- Tạo hình ảnh.
+- Tạo video.
+- Tạo âm thanh.
+- Tạo giọng đọc.
+- Tạo tài nguyên đồ họa.
+- Tạo nhân vật và bối cảnh.
+- AI Enhancement.
+
+Tất cả phải tuân theo AIGG.
+
+### **8.3. Unified Production Pipeline**
+
+Hai nhánh không hoạt động tách biệt hoàn toàn.
+
+Chúng trao đổi dữ liệu qua Asset Registry và Workflow Context.
+
+Ví dụ:
+
+- Editing Branch phân tích footage.
+- AI Core viết kịch bản dựa trên kết quả phân tích.
+- Generative Branch tạo thumbnail nếu được phép.
+- Editing Branch kết hợp footage và audio.
+- Quality Control đánh giá thành phẩm.
+
+Nếu Channel cấm Generative Branch, Editing Branch vẫn hoạt động bình thường.
+
+# **PHẦN V — CASL VÀ WORKFLOW ENGINE**
+
+## **9. CASL – CoC Automation Scripting Language / FlowKit Automation Scripting Language**
+
+Tên viết tắt CASL được giữ theo định danh đã sử dụng trong thiết kế trước; tên đầy đủ cần được chuẩn hóa khi hoàn thiện tài liệu sản phẩm.
+
+CASL là ngôn ngữ kịch bản dùng để mô tả logic nghiệp vụ, điều kiện và cách Skill xử lý công việc.
+
+CASL không thay thế Workflow Engine.
+
+### **9.1. Vai trò**
+
+CASL chịu trách nhiệm:
+
+- Điều kiện IF/ELSE.
+- Biểu thức logic.
+- Biến và dữ liệu.
+- Kiểm tra điều kiện.
+- Gọi Skill.
+- Gọi API qua connector được cấp quyền.
+- Xử lý kết quả.
+- Điều phối các bước bên trong một Skill.
+- Xử lý lỗi.
+- Gọi fallback.
+- Ghi nhận kết quả.
+
+### **9.2. JSON DSL**
+
+CASL có hai thành phần:
+
+| Thành phần     | Chức năng                |
+| -------------- | ------------------------ |
+| JSON DSL       | Biểu diễn cấu trúc logic |
+| Script Runtime | Diễn giải và thực thi    |
+
+Các khả năng bắt buộc:
+
+- Sequence.
+- Condition.
+- Branch.
+- Loop có giới hạn.
+- Variable.
+- Expression.
+- Function.
+- Skill Invocation.
+- API Invocation.
+- Error Handling.
+- State Access.
+- Event Handling.
+
+JSON DSL phải có Schema Validation, Type Validation và Version Compatibility.
+
+### **9.3. Script Runtime**
+
+Runtime phải:
+
+- Kiểm tra cú pháp.
+- Kiểm tra kiểu dữ liệu.
+- Giới hạn tài nguyên.
+- Kiểm soát quyền truy cập.
+- Hỗ trợ timeout.
+- Hỗ trợ cancellation.
+- Có execution context.
+- Ghi lại execution trace.
+- Hỗ trợ phục hồi khi tác vụ bị gián đoạn.
+
+Không cho phép Script tùy ý truy cập dữ liệu hoặc thực thi chức năng bên ngoài phạm vi được cấp quyền.
+
+### **9.4. Skill Invocation**
+
+CASL có thể gọi Skill thông qua Skill Registry.
+
+Skill Invocation cần xác định:
+
+- Skill ID.
+- Version.
+- Input Schema.
+- Output Schema.
+- Execution Context.
+- Permission Scope.
+- Timeout.
+- Error Contract.
+
+Skill không nên gọi trực tiếp các thành phần nội bộ không được công khai qua interface.
+
+## **10. Workflow Engine**
+
+Workflow Engine là bộ điều phối trung tâm của FlowKit.
+
+Một Workflow đại diện cho một công việc hoặc dây chuyền sản xuất có thể vận hành độc lập.
+
+### **10.1. Trách nhiệm**
+
+- Quản lý vòng đời công việc.
+- Quản lý thời gian.
+- Quản lý trạng thái.
+- Điều kiện thực thi.
+- Nhánh quyết định.
+- Điều phối Skill.
+- Điều phối CASL.
+- Xử lý sự kiện.
+- Retry.
+- Timeout.
+- Pause và Resume.
+- Approval Wait.
+- Cancellation.
+- Recovery.
+
+### **10.2. Workflow Structure**
+
+Một Workflow gồm:
+
+1. Metadata.
+2. Trigger.
+3. Input.
+4. Context.
+5. Steps.
+6. Conditions.
+7. Branches.
+8. Skill References.
+9. CASL References.
+10. State Definition.
+11. Error Handling.
+12. Output.
+13. Policy References.
+14. Version.
+
+### **10.3. Workflow Lifecycle**
+
+1. Created
+2. Validated
+3. Scheduled
+4. Running
+5. Waiting / Paused
+6. Completed / Failed / Cancelled
+
+Workflow có thể:
+
+- Chạy theo lịch.
+- Chạy khi có sự kiện.
+- Chạy theo điều kiện.
+- Chạy thủ công.
+- Được gọi bởi Workflow khác nếu được cấu hình.
+
+### **10.4. State Management**
+
+State phải được lưu bền vững.
+
+Không phụ thuộc vào bộ nhớ tạm của tiến trình.
+
+Cần có:
+
+- Current State.
+- Previous State.
+- Execution Position.
+- Context Snapshot.
+- Pending Tasks.
+- Retry Count.
+- Error Information.
+- Policy Snapshot.
+- Version References.
+
+### **10.5. Branch và Parallel Execution**
+
+Workflow hỗ trợ:
+
+- IF/ELSE.
+- Switch.
+- Parallel Branch.
+- Conditional Join.
+- Sequential Execution.
+- Error Branch.
+- Timeout Branch.
+
+Parallel Execution phải có cơ chế kiểm soát tài nguyên và xử lý lỗi giữa các nhánh.
+
+### **10.6. Approval Integration**
+
+Khi cần phê duyệt:
+
+- Workflow chuyển sang AWAITING_APPROVAL.
+- Lưu Context và Execution Position.
+- Không tiếp tục công đoạn bị chặn.
+- Nhận quyết định từ Approval Manager.
+- Kiểm tra lại quyền và trạng thái.
+- Resume hoặc kết thúc theo quyết định.
+
+## **11. Skill Engine**
+
+Skill là đơn vị đóng gói năng lực thực thi.
+
+Một Skill có thể thực hiện công việc đơn giản hoặc phức tạp.
+
+### **11.1. Phân cấp Skill**
+
+**Level 0 – Primitive Skills**
+
+Những thao tác cơ bản nhất:
+
+- Đọc tệp.
+- Ghi dữ liệu.
+- Chuyển định dạng.
+- Trích xuất metadata.
+- Gọi một API được cấp quyền.
+
+**Level 1 – Functional Skills**
+
+Những chức năng nghiệp vụ độc lập:
+
+- Phân tích video.
+- Phân tích audio.
+- Tạo phụ đề.
+- Cắt video.
+- Tạo thumbnail.
+
+**Level 2 – Composite Skills**
+
+Kết hợp nhiều Skill:
+
+- Footage Analysis.
+- Automatic Editing.
+- Thumbnail Production.
+- Video Quality Inspection.
+
+**Level 3 – Production Skills**
+
+Những năng lực phục vụ một giai đoạn sản xuất lớn:
+
+- Video Production.
+- Content Packaging.
+- Final Rendering.
+- Publishing Preparation.
+
+### **11.2. Skill Architecture**
+
+Mỗi Skill có:
+
+| Thành phần             | Vai trò         |
+| ---------------------- | --------------- |
+| Manifest               | Thông tin Skill |
+| Input Schema           | Đầu vào         |
+| Output Schema          | Đầu ra          |
+| CASL Script            | Logic nghiệp vụ |
+| Tool/API References    | Công cụ sử dụng |
+| Permission Declaration | Quyền yêu cầu   |
+| Dependencies           | Phụ thuộc       |
+| Error Contract         | Xử lý lỗi       |
+| Version                | Phiên bản       |
+| Tests                  | Kiểm thử        |
+
+### **11.3. Skill Runtime**
+
+Skill Runtime thực thi Skill trong phạm vi quyền hạn.
+
+Mỗi lần chạy phải có Execution Context riêng, hỗ trợ timeout, cancellation, logging và recovery.
+
+### **11.4. Skill Versioning**
+
+Skill được quản lý độc lập.
+
+Có thể:
+
+- Tạo phiên bản mới.
+- So sánh thay đổi.
+- Kiểm tra tương thích.
+- Rollback.
+- Phê duyệt.
+- Phát hành.
+
+Thay đổi Skill không được âm thầm làm thay đổi Workflow đang chạy.
+
+# **PHẦN VI — ASSET MANAGEMENT VÀ REFERENCE-TO-EDITING INTELLIGENCE**
+
+## **12. Asset Management System**
+
+Asset Management là hệ thống quản lý toàn bộ tài nguyên đầu vào, trung gian và đầu ra.
+
+### **12.1. Phân loại Asset**
+
+| Nhóm            | Nội dung                        |
+| --------------- | ------------------------------- |
+| Video Asset     | Footage, video, clip            |
+| Image Asset     | Ảnh, thumbnail, đồ họa          |
+| Audio Asset     | Nhạc, giọng đọc, hiệu ứng       |
+| Project Asset   | Timeline, project file          |
+| Generated Asset | Tài nguyên AI tạo sinh          |
+| Template Asset  | Template dựng và thiết kế       |
+| Reference Asset | Video mẫu, tài liệu tham khảo   |
+| Metadata Asset  | Metadata và thông tin phân tích |
+
+### **12.2. Asset Registry**
+
+Mỗi Asset cần có định danh ổn định.
+
+Thông tin quản lý:
+
+- Asset ID.
+- Asset Type.
+- File Location.
+- File Format.
+- File Size.
+- Duration.
+- Resolution.
+- Frame Rate.
+- Audio Properties.
+- Source.
+- Owner.
+- Channel.
+- Project.
+- License.
+- Quality Score.
+- Provenance.
+- Version.
+- Tags.
+- Relationships.
+
+### **12.3. Asset Relationship**
+
+Không chỉ lưu tệp, FlowKit phải biết quan hệ giữa chúng.
+
+Ví dụ:
+
+**Original Gameplay Footage**
+
+**Scene Analysis**
+
+Phân tích cảnh
+
+**Audio Processing**
+
+Xử lý âm thanh
+
+**Editing Project**
+
+**Final Video**
+
+Quan hệ phải cho phép truy xuất ngược từ thành phẩm về tài nguyên gốc.
+
+### **12.4. Asset Quality Scoring**
+
+Đánh giá theo các yếu tố:
+
+- Resolution.
+- Frame Rate.
+- Bitrate.
+- Visual Quality.
+- Audio Quality.
+- Compression Artifacts.
+- Stability.
+- Completeness.
+
+Điểm chất lượng không được thay thế các điều kiện bắt buộc. Ví dụ footage 480p không thể được coi là đạt chuẩn tối thiểu 720p chỉ vì có điểm tổng thể cao.
+
+### **12.5. Asset Rights Management**
+
+Quản lý:
+
+- Nguồn tài nguyên.
+- Chủ sở hữu.
+- Giấy phép.
+- Phạm vi sử dụng.
+- Hạn chế sử dụng.
+- Thời hạn.
+- Quyền chỉnh sửa.
+- Quyền tái sử dụng.
+
+Asset không rõ quyền sử dụng phải được đánh dấu và không được tự động đưa vào sản phẩm.
+
+## **13. Reference-to-Editing Intelligence**
+
+Đây là một năng lực chiến lược của FlowKit.
+
+Mục tiêu: Người dùng cung cấp video và tài liệu tham khảo, hệ thống phân tích chúng, xây dựng hồ sơ phong cách dựng, sau đó sử dụng hồ sơ này để điều khiển quá trình sản xuất.
+
+### **13.1. Reference Intake**
+
+Nhận:
+
+- Video tham khảo.
+- Hình ảnh.
+- Audio.
+- Tài liệu.
+- Timeline mẫu nếu có.
+- Các ghi chú của người dùng.
+
+Tất cả được đưa vào Reference Asset Registry.
+
+### **13.2. Reference Analysis**
+
+Hệ thống phân tích:
+
+| Nhóm        | Nội dung                      |
+| ----------- | ----------------------------- |
+| Visual      | Hình ảnh, màu sắc, bố cục     |
+| Temporal    | Nhịp dựng, thời lượng cảnh    |
+| Editing     | Cắt ghép, chuyển cảnh         |
+| Audio       | Nhạc, hiệu ứng, nhịp âm thanh |
+| Composition | Cấu trúc và bố cục cảnh       |
+| Narrative   | Cách tổ chức nội dung         |
+| Typography  | Chữ và đồ họa                 |
+| Motion      | Chuyển động và hiệu ứng       |
+
+### **13.3. Style Profile**
+
+Kết quả phân tích được chuyển thành Style Profile có cấu trúc.
+
+Style Profile không phải một đoạn mô tả đơn thuần.
+
+Nó bao gồm:
+
+- Visual Profile.
+- Editing Profile.
+- Audio Profile.
+- Temporal Profile.
+- Typography Profile.
+- Motion Profile.
+- Quality Profile.
+- Confidence Scores.
+- Reference Links.
+
+### **13.4. Editing Intelligence**
+
+Khi tạo video mới, Workflow có thể yêu cầu Editing Intelligence:
+
+- Đọc Style Profile.
+- Phân tích footage hiện tại.
+- Đối chiếu nguồn footage với phong cách tham khảo.
+- Đề xuất timeline.
+- Đề xuất điểm cắt.
+- Đề xuất chuyển cảnh.
+- Đề xuất xử lý âm thanh.
+- Đề xuất hiệu chỉnh hình ảnh.
+
+AI không nhất thiết phải trực tiếp dựng video. Nó có thể tạo kế hoạch dựng có cấu trúc để Editing Skills thực hiện.
+
+### **13.5. Style Governance**
+
+Style Profile được quản lý độc lập với Channel System Prompt.
+
+Lý do:
+
+- System Prompt quy định định hướng.
+- Style Profile mô tả phong cách.
+- Editing Policy quy định giới hạn.
+- Editing Skills thực hiện thao tác.
+
+AI có thể đề xuất cập nhật Style Profile nhưng phải qua cơ chế phê duyệt nếu thay đổi ảnh hưởng đến định hướng chính thức của kênh.
+
+# **PHẦN VII — MEMORY VÀ DATA MANAGEMENT**
+
+## **14. Memory System**
+
+Memory System quản lý tri thức được tích lũy qua quá trình sử dụng FlowKit.
+
+Không nên đồng nhất Memory với Asset Repository hoặc Database nghiệp vụ.
+
+### **14.1. Các loại Memory**
+
+| Loại             | Nội dung                               |
+| ---------------- | -------------------------------------- |
+| Global Memory    | Tri thức chung của hệ thống            |
+| Channel Memory   | Kiến thức riêng từng kênh              |
+| Project Memory   | Thông tin dự án                        |
+| Workflow Memory  | Lịch sử và kinh nghiệm vận hành        |
+| Skill Memory     | Thông tin thực thi Skill               |
+| Style Memory     | Phong cách và đặc điểm dựng            |
+| Reference Memory | Kiến thức rút ra từ tài liệu tham khảo |
+
+### **14.2. Memory Architecture**
+
+Sử dụng mô hình Hybrid Storage:
+
+- Structured Memory: dữ liệu có cấu trúc.
+- Semantic Memory: dữ liệu phục vụ tìm kiếm ngữ nghĩa.
+- Relational References: liên kết tới Asset, Workflow, Skill và Channel.
+
+Memory cần hỗ trợ:
+
+- Lưu trữ.
+- Truy xuất.
+- Cập nhật.
+- Phân loại.
+- Đánh giá độ tin cậy.
+- Versioning.
+- Expiration.
+- Provenance.
+- Access Control.
+
+### **14.3. Memory Retrieval**
+
+Khi Workflow hoặc AI cần thông tin:
+
+1. Xác định Channel và Project.
+2. Xác định loại thông tin.
+3. Truy xuất dữ liệu phù hợp.
+4. Kiểm tra quyền truy cập.
+5. Kiểm tra phiên bản và độ tin cậy.
+6. Đưa dữ liệu vào Context.
+
+Không được trộn Memory của hai kênh nếu không được cho phép.
+
+### **14.4. Memory Learning**
+
+FlowKit có thể rút kinh nghiệm từ:
+
+- Kết quả sản xuất.
+- Đánh giá chất lượng.
+- Lỗi Workflow.
+- Feedback của người dùng.
+- Kết quả phân tích video.
+- Các quyết định đã phê duyệt.
+
+Tuy nhiên, Learning không đồng nghĩa với tự sửa chính sách.
+
+Memory có thể được cập nhật theo quyền đã cấp; Policy và System Prompt chính thức vẫn phải qua Approval.
+
+## **15. Storage Architecture**
+
+Tôi đề xuất tổ chức lưu trữ thành các nhóm logic:
+
+| Kho dữ liệu    | Chức năng                |
+| -------------- | ------------------------ |
+| Metadata Store | Thông tin đối tượng      |
+| Policy Store   | Chính sách và phiên bản  |
+| Workflow Store | Định nghĩa và trạng thái |
+| Skill Store    | Skill và Script          |
+| Asset Storage  | Tệp media                |
+| Memory Store   | Tri thức                 |
+| Vector Index   | Tìm kiếm ngữ nghĩa       |
+| Audit Store    | Nhật ký                  |
+| Version Store  | Lịch sử thay đổi         |
+
+Các dữ liệu quan trọng phải có quan hệ bằng ID ổn định.
+
+### **15.1. Quy tắc lưu trữ**
+
+- Metadata không nên lưu trùng nội dung file media.
+- Asset lớn được lưu trong kho file chuyên dụng.
+- Database quản lý metadata và liên kết.
+- Vector Index là chỉ mục, không phải nguồn dữ liệu chuẩn duy nhất.
+- Version Store quản lý các phiên bản.
+- Audit Store phải bảo vệ lịch sử.
+- Backup phải có khả năng phục hồi và kiểm tra tính toàn vẹn.
+
+### **15.2. Data Lifecycle**
+
+Mỗi loại dữ liệu phải có vòng đời:
+
+Created → Validated → Stored → Indexed → Used → Archived → Deleted.
+
+Việc xóa dữ liệu phải xét các quan hệ phụ thuộc, quyền sở hữu và chính sách lưu trữ.
+
+# **PHẦN VIII — VERSION CONTROL, REVIEW VÀ APPROVAL**
+
+## **16. FlowKit Version Control System**
+
+Đây là một thành phần rất đáng đầu tư.
+
+FlowKit nên sử dụng tư duy quản lý thay đổi tương tự Git, nhưng mở rộng cho toàn bộ hoạt động sản xuất.
+
+Không chỉ code, mà cả:
+
+- Workflow.
+- Skill.
+- System Prompt.
+- Policy.
+- Style Profile.
+- Provider Configuration.
+- CASL Script.
+- Template.
+- Asset.
+- Production Project.
+
+### **16.1. Versioning**
+
+Mỗi đối tượng quan trọng cần:
+
+- Object ID.
+- Version ID.
+- Parent Version.
+- Change Summary.
+- Author.
+- Timestamp.
+- Approval Reference.
+- Compatibility Information.
+
+### **16.2. Change Proposal**
+
+Mọi thay đổi quan trọng phải được đưa thành một đề xuất riêng.
+
+Quy trình:
+
+1. **Create Branch / Draft**
+
+   Tạo bản thay đổi độc lập.
+2. **Generate Diff**
+
+   So sánh với phiên bản đang hoạt động.
+3. **Impact Analysis**
+
+   Xác định Workflow, Skill và Channel bị ảnh hưởng.
+4. **Validation**
+
+   Kiểm tra Schema, Dependency và Compatibility.
+5. **Review / Approval**
+
+   Người có quyền xem xét và phê duyệt.
+6. **Merge / Publish**
+
+   Đưa thay đổi vào phiên bản chính thức.
+7. **Monitor / Revert**
+
+   Theo dõi và phục hồi nếu có vấn đề.
+
+### **16.3. Change Impact Analysis**
+
+Trước khi áp dụng thay đổi, hệ thống phải biết:
+
+- Thành phần nào bị ảnh hưởng.
+- Những Workflow nào đang sử dụng.
+- Những Skill nào phụ thuộc.
+- Những Channel nào kế thừa.
+- Có phá vỡ tương thích không.
+- Có ảnh hưởng đến sản phẩm đang chạy không.
+
+### **16.4. Production Versioning**
+
+Không chỉ cấu hình mà sản phẩm video cũng cần phiên bản.
+
+Ví dụ:
+
+- Production Project v1.
+- Production Project v2.
+- Final Video v1.
+- Final Video v2.
+
+Có thể truy xuất chính xác video nào được tạo bởi Workflow, Skill, Asset và Policy version nào.
+
+### **16.5. Approval Center**
+
+Giao diện trung tâm quản lý:
+
+- Pending Changes.
+- Pending Policy Approval.
+- Pending Generation Approval.
+- Pending Exception.
+- Pending Workflow Changes.
+- Rejected Requests.
+- Published Versions.
+
+Mục tiêu là tránh việc hệ thống liên tục hỏi từng bước nhỏ. Người dùng có một nơi tập trung để xử lý các quyết định quan trọng.
+
+# **PHẦN IX — SCHEDULER, RUNTIME VÀ OBSERVABILITY**
+
+## **17. Scheduler và Production Runtime**
+
+### **17.1. Scheduler**
+
+Scheduler chịu trách nhiệm:
+
+- Lập lịch.
+- Kích hoạt Workflow.
+- Quản lý lịch định kỳ.
+- Quản lý thời gian chờ.
+- Xử lý sự kiện.
+- Kiểm tra điều kiện.
+- Quản lý lịch thực thi.
+
+Scheduler không tự thực hiện logic nghiệp vụ thay Workflow Engine.
+
+### **17.2. Production Runtime**
+
+Production Runtime là môi trường thực thi thực tế.
+
+Nó điều phối:
+
+- Workflow Execution.
+- CASL Runtime.
+- Skill Runtime.
+- AI Task.
+- Editing Task.
+- Generative Task.
+- Media Rendering.
+- Asset Operations.
+
+### **17.3. Job Management**
+
+Mỗi công việc cần có:
+
+- Job ID.
+- Workflow ID.
+- Task ID.
+- Status.
+- Priority.
+- Retry Count.
+- Start Time.
+- End Time.
+- Resource Usage.
+- Error.
+- Execution Context.
+
+### **17.4. Cancellation và Recovery**
+
+Hệ thống phải hỗ trợ:
+
+- Dừng công việc.
+- Tạm dừng.
+- Tiếp tục.
+- Phục hồi.
+- Hủy tác vụ con.
+- Giải phóng tài nguyên.
+- Xử lý công việc bị treo.
+
+Không được coi việc ứng dụng đóng hoặc Runtime khởi động lại là lý do mất toàn bộ trạng thái.
+
+## **18. Observability System**
+
+Observability quản lý khả năng quan sát và đánh giá toàn hệ thống.
+
+### **18.1. Logging**
+
+Lưu:
+
+- Workflow Events.
+- Skill Events.
+- AI Requests.
+- Provider Errors.
+- Policy Decisions.
+- Approval Events.
+- Asset Operations.
+- Rendering Events.
+
+### **18.2. Metrics**
+
+Theo dõi:
+
+- Workflow Success Rate.
+- Skill Failure Rate.
+- AI Latency.
+- Provider Availability.
+- Generation Cost.
+- Rendering Duration.
+- Asset Processing Time.
+- Fallback Rate.
+- Approval Waiting Time.
+
+### **18.3. Distributed Tracing**
+
+Một yêu cầu sản xuất phải có thể truy vết xuyên suốt:
+
+Production Request → Workflow → CASL → Skill → AI Core / Media Engine → Asset → Final Output.
+
+### **18.4. Alerting**
+
+Cảnh báo khi:
+
+- Workflow bị treo.
+- Provider lỗi liên tục.
+- Chi phí vượt ngân sách.
+- Asset không hợp lệ.
+- Policy bị vi phạm.
+- Output không đạt chất lượng.
+- Có thay đổi bất thường.
+
+# **PHẦN X — GIAO DIỆN VÀ TRẢI NGHIỆM NGƯỜI DÙNG**
+
+## **19. FlowKit Dashboard**
+
+Dashboard là trung tâm điều hành.
+
+Các khu vực chính:
+
+**FlowKit Dashboard**
+
+Concept
+
+**Overview**
+
+Tổng quan hoạt động
+
+**Channels**
+
+Quản lý kênh
+
+**Workflows**
+
+Điều phối công việc
+
+**Skills**
+
+Quản lý năng lực
+
+**Assets**
+
+Quản lý tài nguyên
+
+**AI Management**
+
+AI và Provider
+
+**Governance**
+
+Chính sách và quyền
+
+**Review Center**
+
+Duyệt thay đổi
+
+## **20. Channel Manager**
+
+Mỗi Channel có một Dashboard riêng.
+
+Các khu vực:
+
+- Overview.
+- Channel Constitution.
+- Policies.
+- AI Permissions.
+- Style Profile.
+- Asset Library.
+- Workflows.
+- Production History.
+- Quality Reports.
+- Change Proposals.
+
+Người dùng có thể quản lý nhiều kênh mà không làm lẫn dữ liệu hoặc định hướng.
+
+## **21. Workflow Editor**
+
+Workflow Editor phải trực quan nhưng không giới hạn khả năng của CASL.
+
+Các khả năng:
+
+- Kéo thả bước công việc.
+- Điều kiện IF/ELSE.
+- Nhánh song song.
+- Gọi Skill.
+- Xem trạng thái.
+- Xem Execution Trace.
+- Kiểm tra Dependency.
+- Version Diff.
+- Test và Simulation.
+
+Workflow Editor là giao diện xây dựng Workflow, không phải một hệ thống logic riêng cạnh tranh với CASL.
+
+## **22. Approval Center**
+
+Đây là nơi tập trung những việc cần người dùng quyết định.
+
+Mỗi đề xuất hiển thị:
+
+- Nội dung hiện tại.
+- Nội dung mới.
+- Diff.
+- Lý do.
+- Bằng chứng.
+- Phạm vi ảnh hưởng.
+- Rủi ro.
+- Phiên bản.
+- Người đề xuất.
+
+Người dùng có thể phê duyệt, từ chối hoặc yêu cầu chỉnh sửa.
+
+# **PHẦN XI — SECURITY, PERMISSION VÀ RELIABILITY**
+
+## **23. Security Architecture**
+
+Bảo mật phải được thiết kế xuyên suốt các phân hệ, không phải một module bổ sung sau cùng.
+
+### **23.1. Identity và Access Control**
+
+Quản lý danh tính và quyền của:
+
+- Owner.
+- Administrator.
+- Operator.
+- Reviewer.
+- Workflow Runtime.
+- Skill Runtime.
+- AI Provider.
+- External Integration.
+
+Các quyền phải phân biệt:
+
+| Quyền   | Ý nghĩa       |
+| ------- | ------------- |
+| READ    | Đọc dữ liệu   |
+| CREATE  | Tạo đối tượng |
+| UPDATE  | Sửa đổi       |
+| EXECUTE | Thực thi      |
+| APPROVE | Phê duyệt     |
+| PUBLISH | Xuất bản      |
+| DELETE  | Xóa           |
+| ADMIN   | Quản trị      |
+
+Không được mặc định rằng quyền đọc cũng đồng nghĩa với quyền thực thi hoặc sửa đổi.
+
+### **23.2. Least Privilege**
+
+Mỗi thành phần chỉ được cấp quyền tối thiểu cần thiết.
+
+Ví dụ:
+
+- Skill phân tích footage chỉ cần quyền đọc footage và ghi kết quả phân tích.
+- Skill dựng video cần quyền đọc Asset và tạo Project Output.
+- Skill tạo hình ảnh cần quyền gọi Generative Gateway theo phạm vi được cấp.
+- Workflow không có quyền sửa Global Policy.
+- AI không có quyền tự cấp quyền cho chính mình.
+
+### **23.3. Data Isolation**
+
+Dữ liệu phải được phân vùng theo:
+
+- Global.
+- Channel.
+- Project.
+- Workflow.
+- Asset.
+
+Không được để một Channel truy cập dữ liệu riêng của Channel khác nếu không có quyền.
+
+### **23.4. Secrets Management**
+
+Quản lý riêng:
+
+- API Keys.
+- Provider Credentials.
+- Authentication Tokens.
+- External Service Credentials.
+
+Không đưa thông tin xác thực vào System Prompt, CASL Script, Asset Metadata hoặc nhật ký thông thường.
+
+### **23.5. Execution Isolation**
+
+CASL và Skill Runtime phải có:
+
+- Giới hạn tài nguyên.
+- Giới hạn thời gian.
+- Kiểm soát truy cập tệp.
+- Kiểm soát network.
+- Kiểm soát API.
+- Cancellation.
+- Audit.
+
+Không để một Skill lỗi làm sập toàn bộ Production Runtime.
+
+## **24. Reliability và Fault Tolerance**
+
+FlowKit phải chịu được lỗi ở từng thành phần mà không mất dữ liệu hoặc tạo ra trạng thái không nhất quán.
+
+### **24.1. Failure Isolation**
+
+Lỗi ở:
+
+- AI Provider.
+- Editing Engine.
+- Media Engine.
+- Skill.
+- Workflow.
+- Storage.
+
+Phải được cô lập và xử lý theo từng phạm vi.
+
+### **24.2. Retry Policy**
+
+Retry cần phân biệt:
+
+- Temporary Failure.
+- Rate Limit.
+- Timeout.
+- Permanent Error.
+- Invalid Input.
+- Permission Denied.
+
+Không retry yêu cầu bị từ chối bởi Governance.
+
+### **24.3. Idempotency**
+
+Mỗi tác vụ có thể có Idempotency Key để tránh tạo nhiều kết quả ngoài ý muốn khi retry.
+
+Đặc biệt quan trọng đối với:
+
+- AI Generation.
+- File Upload.
+- Asset Registration.
+- Rendering.
+- Publishing.
+
+### **24.4. Recovery**
+
+Khi Runtime gặp sự cố:
+
+1. Khôi phục Workflow State.
+2. Đọc Execution Position.
+3. Kiểm tra các Task chưa hoàn tất.
+4. Kiểm tra các kết quả đã được ghi nhận.
+5. Xác thực Policy Snapshot.
+6. Tiếp tục hoặc khởi tạo lại phần việc an toàn.
+
+Không được mặc định chạy lại toàn bộ Workflow.
+
+# **PHẦN XII — INTEGRATION VÀ INTERFACE CONTRACTS**
+
+## **25. Integration Architecture**
+
+FlowKit phải hỗ trợ mở rộng qua các interface thống nhất.
+
+Các nhóm tích hợp:
+
+| Interface              | Mục đích                    |
+| ---------------------- | --------------------------- |
+| AI Provider Adapter    | Kết nối model               |
+| Media Adapter          | Kết nối công cụ xử lý media |
+| Storage Adapter        | Kết nối kho lưu trữ         |
+| Database Adapter       | Truy cập dữ liệu            |
+| Vision Adapter         | Nhận diện và phân tích      |
+| External API Connector | Kết nối dịch vụ bên ngoài   |
+| Notification Adapter   | Thông báo                   |
+| Publishing Adapter     | Tích hợp nền tảng xuất bản  |
+
+### **25.1. Chuẩn hóa Input/Output**
+
+Mỗi interface cần quy định:
+
+- Request Schema.
+- Response Schema.
+- Error Schema.
+- Authentication.
+- Timeout.
+- Version.
+- Permission.
+- Compatibility.
+
+Không để Workflow phụ thuộc vào cấu trúc response riêng của từng Provider.
+
+### **25.2. Event-Driven Communication**
+
+Các module có thể trao đổi thông qua sự kiện.
+
+Nhóm sự kiện chính:
+
+- WorkflowCreated.
+- WorkflowStarted.
+- WorkflowCompleted.
+- SkillExecuted.
+- GenerationRequested.
+- GenerationDenied.
+- ApprovalRequested.
+- ApprovalGranted.
+- AssetCreated.
+- AssetValidated.
+- PolicyPublished.
+- VersionRolledBack.
+
+Event phải có định danh, thời điểm, nguồn phát sinh, phiên bản Schema và quan hệ với Execution Context.
+
+### **25.3. Event Reliability**
+
+Đề xuất áp dụng:
+
+- Durable Event Storage.
+- Event Versioning.
+- Idempotent Consumers.
+- Retry và Dead Letter Handling.
+- Event Correlation ID.
+
+Không sử dụng Event như nguồn thay thế duy nhất cho dữ liệu nghiệp vụ chính thức.
+
+# **PHẦN XIII — QUALITY MANAGEMENT VÀ CONTINUOUS IMPROVEMENT**
+
+## **26. Quality Management System**
+
+Quality Management đánh giá chất lượng sản phẩm và chất lượng quá trình sản xuất.
+
+### **26.1. Video Quality**
+
+Các tiêu chí:
+
+- Resolution.
+- Frame Rate.
+- Bitrate.
+- Encoding.
+- Visual Artifacts.
+- Audio Quality.
+- Synchronization.
+- Duration.
+- Aspect Ratio.
+- Subtitle Accuracy.
+
+Các tiêu chí có thể có ngưỡng bắt buộc và ngưỡng khuyến nghị.
+
+Ví dụ với một Channel:
+
+- Tối thiểu 720p.
+- Ưu tiên 1080p trở lên.
+- Không chấp nhận video sai tỷ lệ khung hình.
+- Kiểm tra âm thanh trước khi xuất bản.
+
+### **26.2. Content Quality**
+
+Đánh giá:
+
+- Tính phù hợp với chủ đề.
+- Tính nhất quán.
+- Cấu trúc nội dung.
+- Mức độ hoàn thiện.
+- Sự phù hợp với Channel Constitution.
+- Sự phù hợp với Style Profile.
+
+### **26.3. Automated Quality Gate**
+
+Trước khi hoàn tất Workflow:
+
+1. Kiểm tra tệp.
+2. Kiểm tra thông số.
+3. Kiểm tra nội dung.
+4. Kiểm tra chính sách.
+5. Kiểm tra Asset Provenance.
+6. Đưa ra kết quả.
+
+Kết quả:
+
+- PASS.
+- PASS_WITH_WARNINGS.
+- NEEDS_REVIEW.
+- FAIL.
+
+Không được tự động chuyển một kết quả FAIL thành PASS chỉ để hoàn thành Workflow.
+
+## **27. Learning và Continuous Improvement**
+
+FlowKit có thể tự phân tích kết quả sản xuất để cải thiện hiệu quả.
+
+Các nguồn dữ liệu:
+
+- Video đầu ra.
+- Chất lượng.
+- Thời gian xử lý.
+- Lỗi Workflow.
+- Chi phí AI.
+- Feedback.
+- Hiệu quả tài nguyên.
+- Các Style Profile.
+
+### **27.1. Improvement Engine**
+
+Nhiệm vụ:
+
+- Phát hiện vấn đề.
+- Tìm nguyên nhân.
+- Phân tích xu hướng.
+- Đề xuất thay đổi.
+- Mô phỏng tác động.
+- Đánh giá kết quả.
+
+### **27.2. Policy Drift Detection**
+
+Phát hiện khi sản phẩm thực tế ngày càng lệch khỏi:
+
+- Channel Constitution.
+- Style Profile.
+- Quality Policy.
+- Source Policy.
+- AI Generation Policy.
+
+### **27.3. Evidence-Based Improvement**
+
+Mọi đề xuất quan trọng phải có:
+
+- Bằng chứng.
+- Dữ liệu liên quan.
+- Mức độ tin cậy.
+- Phạm vi tác động.
+- Lợi ích dự kiến.
+- Rủi ro.
+- Phương án rollback.
+
+Learning Engine không được tự động sửa những chính sách chính thức.
+
+# **PHẦN XIV — QUY TRÌNH VẬN HÀNH TỔNG THỂ**
+
+## **28. End-to-End Production Lifecycle**
+
+Đây là luồng vận hành tiêu chuẩn của FlowKit.
+
+1. **Production Request**
+
+   Người dùng tạo yêu cầu sản xuất.
+2. **Channel Resolution**
+
+   Xác định Channel, Project và các chính sách.
+3. **Context Assembly**
+
+   Thu thập Memory, Asset và Reference liên quan.
+4. **Workflow Selection**
+
+   Chọn Workflow phù hợp.
+5. **CASL Execution**
+
+   Phân tích logic, điều kiện và quyết định các bước.
+6. **Policy Enforcement**
+
+   Kiểm tra quyền sử dụng công cụ và AI.
+7. **Skill Execution**
+
+   Điều phối Editing Skills và Generative Skills.
+8. **Asset Integration**
+
+   Hợp nhất và quản lý tài nguyên.
+9. **Quality Control**
+
+   Kiểm tra sản phẩm và chính sách.
+10. **Review / Approval**
+
+    Chờ duyệt nếu công đoạn yêu cầu.
+11. **Final Output**
+
+    Hoàn thiện sản phẩm.
+12. **Archive & Learning**
+
+    Lưu kết quả, Provenance, Metrics và cập nhật Memory phù hợp.
+
+## **29. Ví dụ vận hành: Gameplay Channel**
+
+Giả sử người dùng yêu cầu FlowKit sản xuất một video gameplay.
+
+**Bước 1 – Nhận yêu cầu**
+
+Người dùng cung cấp gameplay footage và mô tả nội dung.
+
+**Bước 2 – Channel Governance**
+
+Hệ thống tải:
+
+- Channel Constitution.
+- Quality Policy.
+- Source Policy.
+- AI Generation Policy.
+- Style Profile.
+
+**Bước 3 – Phân tích**
+
+AI Vision phân tích footage:
+
+- Nhận diện cảnh.
+- Phát hiện sự kiện.
+- Phân tích chuyển động.
+- Xác định đoạn nổi bật.
+
+**Bước 4 – CASL và Workflow**
+
+CASL xử lý kết quả phân tích, xác định các bước tiếp theo.
+
+**Bước 5 – Editing Branch**
+
+Editing Skills thực hiện:
+
+- Chọn đoạn.
+- Tạo Timeline.
+- Cắt ghép.
+- Đồng bộ âm thanh.
+- Tạo hiệu ứng.
+- Render.
+
+**Bước 6 – AI Generation Governance**
+
+Nếu cần thumbnail hoặc giọng đọc, hệ thống kiểm tra quyền riêng cho từng loại.
+
+Không được tạo gameplay footage mới nếu Channel cấm.
+
+**Bước 7 – Quality Control**
+
+Kiểm tra độ phân giải, âm thanh, nội dung và tính nhất quán.
+
+**Bước 8 – Final Output**
+
+Tạo video hoàn chỉnh và lưu toàn bộ thông tin truy xuất nguồn gốc.
+
+**Bước 9 – Learning**
+
+Phân tích kết quả và đề xuất cải thiện cho những lần sản xuất tiếp theo.
+
+# **PHẦN XV — CÁC NGUYÊN TẮC PHÁT TRIỂN VÀ TRIỂN KHAI**
+
+## **30. Development Architecture**
+
+FlowKit cần được phát triển theo hướng Modular Architecture.
+
+Các module có thể phát triển và kiểm thử độc lập nhưng phải tuân thủ interface chung.
+
+### **30.1. Module Independence**
+
+Một module không được truy cập trực tiếp dữ liệu nội bộ của module khác nếu không thông qua interface được công bố.
+
+Ví dụ:
+
+- Workflow Engine không truy cập trực tiếp database riêng của AI Core.
+- Skill không sửa trực tiếp Policy Registry.
+- AI Core không tự quyết định quyền của Channel.
+- Asset Management không tự quyết định quyền sử dụng AI.
+- Governance Core không thực hiện công việc dựng video.
+
+### **30.2. Dependency Management**
+
+Mỗi module khai báo:
+
+- Dependencies.
+- Version.
+- Required Interfaces.
+- Compatibility.
+- Required Permissions.
+- Migration Requirements.
+
+### **30.3. Schema Versioning**
+
+Các thành phần cần có phiên bản riêng:
+
+- CASL Schema.
+- Workflow Schema.
+- Skill Manifest Schema.
+- Policy Schema.
+- Asset Metadata Schema.
+- Memory Schema.
+- Event Schema.
+- Provider Adapter Contract.
+
+Không được tự động chuyển đổi dữ liệu cũ theo cách làm mất ý nghĩa hoặc quyền hạn.
+
+### **30.4. Testing Architecture**
+
+Các cấp kiểm thử:
+
+| Cấp               | Mục tiêu                  |
+| ----------------- | ------------------------- |
+| Unit Tests        | Kiểm tra logic module     |
+| Schema Tests      | Kiểm tra cấu trúc dữ liệu |
+| Integration Tests | Kiểm tra giao tiếp        |
+| Workflow Tests    | Kiểm tra điều phối        |
+| Policy Tests      | Kiểm tra quyền            |
+| Security Tests    | Kiểm tra vượt quyền       |
+| Recovery Tests    | Kiểm tra phục hồi         |
+| End-to-End Tests  | Kiểm tra toàn bộ sản xuất |
+
+### **30.5. Migration**
+
+Mọi thay đổi kiến trúc phải có:
+
+- Migration Plan.
+- Compatibility Check.
+- Backup.
+- Rollback Plan.
+- Data Integrity Check.
+
+Không được triển khai thay đổi phá vỡ cấu trúc dữ liệu mà không có phương án chuyển đổi.
+
+## **31. Quy tắc bất biến của kiến trúc**
+
+Đây là những nguyên tắc tôi đề xuất xem là Architecture Invariants:
+
+1. Governance là lớp kiểm soát độc lập.
+2. AI không được tự cấp quyền.
+3. Workflow là đơn vị điều phối công việc.
+4. CASL là đơn vị biểu diễn và thực thi logic kịch bản.
+5. Skill là đơn vị đóng gói năng lực.
+6. AI Core không phụ thuộc vào một Provider duy nhất.
+7. AI Generation phải qua AIGG.
+8. DENY không được ghi đè bởi cấp thấp hơn.
+9. Không rõ quyền thì không thực thi.
+10. Thay đổi chính sách chính thức phải được phê duyệt.
+11. Published Version không được chỉnh sửa trực tiếp.
+12. Asset phải có nguồn gốc truy xuất được.
+13. Workflow phải có khả năng phục hồi.
+14. Memory Learning không được tự động thay đổi Policy.
+15. Editing Branch vẫn hoạt động độc lập khi Generative Branch không được phép.
+16. Mọi quyết định thực thi quan trọng phải có thể giải thích và truy vết.
+
+# **PHẦN XVI — LỘ TRÌNH TRIỂN KHAI**
+
+## **32. Implementation Roadmap**
+
+Không nên triển khai tất cả cùng lúc. Các module có quan hệ phụ thuộc và phải được xây dựng theo đúng thứ tự.
+
+**Phase 1 – Core Foundation**
+
+P0
+
+- Core Architecture.
+- Data Model và Registry.
+- AI Core.
+- Provider Adapter.
+- Connection Runtime.
+- Error Handling.
+- Basic Asset Management.
+
+**Phase 2 – Governance Foundation**
+
+P0
+
+- Global Policy.
+- Channel Policy.
+- Channel Constitution.
+- Policy Resolver.
+- Approval Manager.
+- Version Management.
+- AI Generation Governance.
+
+**Phase 3 – Automation Core**
+
+P1
+
+- CASL JSON DSL.
+- CASL Script Runtime.
+- Workflow Engine.
+- State Management.
+- Scheduler.
+- Skill Engine.
+- Execution Recovery.
+
+**Phase 4 – Hybrid Production**
+
+P1
+
+- Editing Engine.
+- Generative Engine.
+- AI Execution Gateway.
+- Automatic Fallback.
+- Media Processing.
+- Output Validation.
+- Unified Production Pipeline.
+
+**Phase 5 – Intelligence**
+
+P2
+
+- Reference-to-Editing Intelligence.
+- Style Profile.
+- Vision Analysis.
+- Hybrid Memory.
+- Asset Provenance.
+- Quality Intelligence.
+
+**Phase 6 – Advanced Governance**
+
+P3
+
+- Policy Simulation.
+- Shadow Policy.
+- Dependency Graph.
+- Automatic Improvement Suggestions.
+- Regression Detection.
+- Advanced Audit.
+
+**Phase 7 – Platform Maturity**
+
+P4
+
+- Advanced Dashboard.
+- Production Analytics.
+- Advanced Resource Scheduling.
+- Plugin Ecosystem.
+- External Integrations.
+- Multi-channel Scaling.
+
+Các phase là thứ tự ưu tiên kiến trúc, không phải cam kết thời gian hoặc tuyên bố module đã hoàn thành.
+
+## **33. Thứ tự phụ thuộc**
+
+Một số module phải được xây dựng trước module khác:
+
+| Module                 | Phụ thuộc chính                        |
+| ---------------------- | -------------------------------------- |
+| AI Core                | Provider Adapter Contract              |
+| Governance Core        | Identity, Data Store, Version Registry |
+| AIGG                   | Governance Core, AI Core               |
+| CASL Runtime           | JSON DSL, Permission Interface         |
+| Workflow Engine        | CASL, State Store, Scheduler           |
+| Skill Engine           | CASL, Runtime, Registry                |
+| Editing Engine         | Skill Engine, Asset Management         |
+| Generative Engine      | AI Core, AIGG                          |
+| Unified Pipeline       | Workflow, Editing, Generative, Asset   |
+| Reference Intelligence | Vision, Asset, Memory, Style Registry  |
+| Learning Engine        | Observability, Memory, Governance      |
+
+# **PHẦN XVII — TIÊU CHÍ NGHIỆM THU TOÀN HỆ THỐNG**
+
+## **34. Architecture Acceptance Criteria**
+
+FlowKit chỉ được xem là đạt yêu cầu kiến trúc khi đáp ứng những nhóm kiểm thử sau.
+
+| Nhóm          | Điều kiện nghiệm thu                            |
+| ------------- | ----------------------------------------------- |
+| Multi-channel | Quản lý nhiều Channel độc lập                   |
+| Inheritance   | Channel kế thừa Global Policy                   |
+| Constitution  | AI không tự xuất bản System Prompt              |
+| Governance    | Quyền được kiểm tra ở Runtime                   |
+| AIGG          | Granular Permission hoạt động                   |
+| Approval      | Không thể vượt Approval Gate                    |
+| Fallback      | Tìm phương án thay thế hợp lệ                   |
+| AI Core       | Có thể thay Provider mà không viết lại Workflow |
+| CASL          | Thực thi đầy đủ logic điều kiện                 |
+| Workflow      | Có nhánh, thời gian và trạng thái               |
+| Skill         | Có thể thêm và thay đổi Skill độc lập           |
+| Editing       | Có thể sản xuất bằng tài nguyên có sẵn          |
+| Generation    | Tuân thủ quyền tạo sinh                         |
+| Asset         | Truy xuất nguồn gốc                             |
+| Memory        | Phân vùng và truy xuất đúng phạm vi             |
+| Versioning    | Có Diff, Publish và Rollback                    |
+| Recovery      | Phục hồi được Workflow                          |
+| Observability | Truy vết được toàn bộ hoạt động                 |
+
+### **Các tình huống kiểm thử bắt buộc**
+
+1. Hai Channel có chính sách AI khác nhau.
+2. Channel cấm AI tạo sinh nhưng vẫn dùng AI phân tích.
+3. Workflow yêu cầu một Skill không được cấp quyền.
+4. Provider bị lỗi và cần retry.
+5. Không có phương án fallback.
+6. Người dùng thay đổi Policy trong lúc Workflow đang chạy.
+7. Workflow bị gián đoạn khi chờ Approval.
+8. Skill được cập nhật nhưng Workflow cũ vẫn cần hoạt động.
+9. Asset đầu vào bị thiếu quyền sử dụng.
+10. Rollback một phiên bản chính sách.
+11. AI đề xuất thay đổi System Prompt.
+12. Người dùng từ chối đề xuất nhưng Workflow khác vẫn hoạt động bình thường.
+
+# **PHẦN XVIII — CÁC QUYẾT ĐỊNH KIẾN TRÚC ĐÃ CHỐT VÀ CÒN MỞ**
+
+Để tránh nhầm lẫn giữa quyết định đã thống nhất và những ý tưởng mới, tôi phân loại như sau.
+
+## **35. Những quyết định đã chốt**
+
+Confirmed
+
+| Hạng mục                 | Quyết định                   |
+| ------------------------ | ---------------------------- |
+| Production Model         | Hybrid                       |
+| Production Branches      | Editing + Generative         |
+| Policy Architecture      | Global + Channel Inheritance |
+| Channel Direction        | Channel System Prompt        |
+| Policy Modification      | Owner Approval               |
+| AI Generation Permission | Granular                     |
+| AI Generation Approval   | Strict                       |
+| Denied Generation        | Automatic Fallback           |
+| Workflow Logic           | CASL                         |
+| Workflow Execution       | Workflow Engine              |
+| Skill Logic              | CASL Script Runtime          |
+| AI Integration           | Provider Adapter             |
+| Storage Philosophy       | Hybrid                       |
+| Version Control          | Git/PR-inspired              |
+| Important Changes        | Approval Required            |
+
+## **36. Những quyết định cần đặc tả sâu hơn**
+
+Các nội dung dưới đây đã có hướng thiết kế nhưng chưa nên coi là quyết định triển khai cuối cùng:
+
+| Hạng mục        | Nội dung cần chốt                            |
+| --------------- | -------------------------------------------- |
+| CASL            | Cú pháp DSL, Type System, Sandbox            |
+| Workflow        | Schema chính thức và Execution Semantics     |
+| Skill           | Manifest và Compatibility Contract           |
+| Storage         | Công nghệ Database và File Storage cụ thể    |
+| Memory          | Chi tiết Hybrid Retrieval và Indexing        |
+| Vision          | Model, pipeline và cách trích xuất đặc trưng |
+| Editing         | Timeline Model và chuẩn trao đổi project     |
+| Generative      | Danh sách Provider và Model được hỗ trợ      |
+| Version Control | Cấu trúc Branch, Commit và Merge             |
+| Runtime         | Cách triển khai tiến trình và hàng đợi       |
+| Dashboard       | Thiết kế giao diện và phân quyền thực tế     |
+| Deployment      | Mô hình triển khai và cập nhật               |
+
+Những phần này cần được thiết kế chi tiết trước khi đưa vào triển khai thực tế, không nên tự ý chọn công nghệ chỉ để lấp chỗ trống.
+
+# **37. Kết luận kiến trúc**
+
+FlowKit được định hướng trở thành một **Hybrid Intelligent Production Platform**, trong đó các thành phần có trách nhiệm rõ ràng:
+
+# **FLOWKIT**
+
+Hybrid AI Production & Workflow Orchestration Platform
+
+**Governance Core**
+
+Quyết định hệ thống được phép làm gì.
+
+**AI Core**
+
+Cung cấp năng lực AI và kết nối Provider.
+
+**CASL**
+
+Mô tả và thực thi logic nghiệp vụ.
+
+**Workflow Engine**
+
+Quyết định công việc nào được thực hiện, khi nào và theo trình tự nào.
+
+**Skill Engine**
+
+Cung cấp những năng lực thực thi độc lập.
+
+**Hybrid Production Engine**
+
+Thực hiện sản xuất bằng công cụ truyền thống và AI tạo sinh.
+
+**Asset & Memory System**
+
+Lưu trữ tài nguyên, tri thức và lịch sử.
+
+**Version Control & Observability**
+
+Quản lý thay đổi, kiểm soát chất lượng và truy xuất hoạt động.
+
+**Nguyên tắc thiết kế cuối cùng**
+
+FlowKit phải có khả năng thay đổi cách sản xuất mà không phải thay đổi lõi điều phối; thay đổi AI Provider mà không phải viết lại Skill; thay đổi Skill mà không phải viết lại Workflow; thay đổi định hướng Channel mà không ảnh hưởng đến các Channel khác; và cải tiến dựa trên dữ liệu mà không làm mất quyền kiểm soát của người dùng.
+
+Consolidated Architecture v1.0
+
+**Đánh giá của tôi:** Đây là nền tảng kiến trúc đủ rộng để phát triển FlowKit thành một hệ thống sản xuất nội dung nhiều kênh, nhiều công nghệ và có khả năng mở rộng lâu dài. Điểm quan trọng nhất là Governance, CASL và Workflow Engine được giữ độc lập, tránh biến toàn bộ ứng dụng thành một tập hợp các lời gọi AI nối tiếp nhau.
+
+**Bước tiếp theo hợp lý nhất:** Chuyển tài liệu này thành bộ đặc tả kỹ thuật chi tiết (Technical Design Specification), lần lượt hoàn thiện Data Schema, CASL Specification, Workflow Execution Semantics, Skill Contract và các API/Event Contract trước khi triển khai.

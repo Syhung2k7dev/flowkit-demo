@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">FlowKit</string>
+    <string name="sign_in_with_google">Sign in with Google</string>
+    <string name="sign_out">Sign Out</string>
+    <string name="nav_overview">Overview</string>
+    <string name="nav_channels">Channels</string>
+    <string name="nav_workflows">Workflows</string>
+    <string name="nav_studio">Studio</string>
+    <string name="nav_approvals">Approvals</string>
+</resources>

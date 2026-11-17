@@ -1,0 +1,355 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isGlobalPolicyDecision(val) {
+      return val is string && val in ['ALLOW', 'DENY', 'REQUIRE_APPROVAL'];
+    }
+
+    function isChannelPolicyDecision(val) {
+      return val is string && val in ['ALLOW', 'DENY', 'REQUIRE_APPROVAL', 'INHERIT'];
+    }
+
+    function isValidGlobalPolicy(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             data.version is string && data.version.size() >= 1 && data.version.size() <= 20 &&
+             data.minResolution is string && data.minResolution in ['480p', '720p', '1080p', '4K'] &&
+             data.requireRightsCheck is bool &&
+             data.requireOwnerApprovalForPrompts is bool &&
+             isGlobalPolicyDecision(data.textGen) &&
+             isGlobalPolicyDecision(data.imageGen) &&
+             isGlobalPolicyDecision(data.videoGen) &&
+             isGlobalPolicyDecision(data.audioGen) &&
+             isGlobalPolicyDecision(data.aiAnalysis) &&
+             isGlobalPolicyDecision(data.aiEnhancement) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidChannel(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 80 &&
+             data.category is string && data.category.size() >= 1 && data.category.size() <= 40 &&
+             data.description is string && data.description.size() <= 500 &&
+             data.systemPrompt is string && data.systemPrompt.size() >= 1 && data.systemPrompt.size() <= 4000 &&
+             data.promptVersion is string && data.promptVersion.size() >= 1 && data.promptVersion.size() <= 20 &&
+             data.previousSystemPrompt is string && data.previousSystemPrompt.size() <= 4000 &&
+             data.minResolution is string && data.minResolution in ['720p', '1080p', '4K'] &&
+             data.editingPriority is string && data.editingPriority in ['EDITING_FIRST', 'HYBRID_BALANCED', 'GENERATIVE_FIRST'] &&
+             isChannelPolicyDecision(data.textGen) &&
+             isChannelPolicyDecision(data.imageGen) &&
+             isChannelPolicyDecision(data.videoGen) &&
+             isChannelPolicyDecision(data.audioGen) &&
+             isChannelPolicyDecision(data.aiAnalysis) &&
+             isChannelPolicyDecision(data.aiEnhancement) &&
+             data.styleVisual is string && data.styleVisual.size() <= 400 &&
+             data.styleTempo is string && data.styleTempo.size() <= 300 &&
+             data.styleAudio is string && data.styleAudio.size() <= 300 &&
+             data.styleConfidence is int && data.styleConfidence >= 0 && data.styleConfidence <= 100 &&
+             data.productionsCount is int && data.productionsCount >= 0 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidWorkflow(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             isValidId(data.channelId) &&
+             data.channelName is string && data.channelName.size() >= 1 && data.channelName.size() <= 80 &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+             data.triggerType is string && data.triggerType in ['MANUAL', 'SCHEDULED', 'EVENT', 'CONDITIONAL'] &&
+             data.lifecycleState is string && data.lifecycleState in ['CREATED', 'VALIDATED', 'RUNNING', 'AWAITING_APPROVAL', 'PAUSED', 'COMPLETED', 'FAILED'] &&
+             data.branchMode is string && data.branchMode in ['EDITING_ONLY', 'GENERATIVE_ONLY', 'HYBRID'] &&
+             data.caslJson is string && data.caslJson.size() >= 1 && data.caslJson.size() <= 8000 &&
+             data.currentStepIndex is int && data.currentStepIndex >= 0 &&
+             data.totalSteps is int && data.totalSteps >= 1 && data.totalSteps <= 50 &&
+             data.lastQualityGate is string && data.lastQualityGate in ['NONE', 'PASS', 'PASS_WITH_WARNINGS', 'NEEDS_REVIEW', 'FAIL'] &&
+             data.lastTraceSummary is string && data.lastTraceSummary.size() <= 2000 &&
+             data.version is string && data.version.size() >= 1 && data.version.size() <= 20 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidSkill(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 80 &&
+             data.level is string && data.level in ['LEVEL_0_PRIMITIVE', 'LEVEL_1_FUNCTIONAL', 'LEVEL_2_COMPOSITE', 'LEVEL_3_PRODUCTION'] &&
+             data.branch is string && data.branch in ['EDITING', 'GENERATIVE', 'ANALYSIS', 'QUALITY'] &&
+             data.requiredCapability is string && data.requiredCapability in ['NONE', 'TEXT_GENERATION', 'IMAGE_GENERATION', 'VIDEO_GENERATION', 'AUDIO_GENERATION', 'AI_ENHANCEMENT', 'AI_ANALYSIS'] &&
+             data.fallbackStrategy is string && data.fallbackStrategy.size() <= 200 &&
+             data.inputSchemaSummary is string && data.inputSchemaSummary.size() <= 300 &&
+             data.outputSchemaSummary is string && data.outputSchemaSummary.size() <= 300 &&
+             data.version is string && data.version.size() >= 1 && data.version.size() <= 20 &&
+             data.enabled is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidAsset(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             isValidId(data.channelId) &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 100 &&
+             data.assetType is string && data.assetType in ['VIDEO', 'IMAGE', 'AUDIO', 'PROJECT', 'GENERATED', 'TEMPLATE', 'REFERENCE', 'METADATA'] &&
+             data.resolution is string && data.resolution.size() <= 30 &&
+             data.qualityScore is int && data.qualityScore >= 0 && data.qualityScore <= 100 &&
+             data.rightsStatus is string && data.rightsStatus in ['VERIFIED', 'RESTRICTED', 'UNKNOWN'] &&
+             data.provenanceChain is string && data.provenanceChain.size() <= 600 &&
+             data.tags is list && data.tags.size() <= 10 && (data.tags.size() == 0 || data.tags[0] is string) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidProposal(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             isValidId(data.channelId) &&
+             data.targetType is string && data.targetType in ['SYSTEM_PROMPT', 'POLICY', 'GENERATION_GATE', 'WORKFLOW_RESUME', 'STYLE_PROFILE', 'EXCEPTION'] &&
+             isValidId(data.targetId) &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 120 &&
+             data.currentValue is string && data.currentValue.size() <= 4000 &&
+             data.proposedValue is string && data.proposedValue.size() >= 1 && data.proposedValue.size() <= 4000 &&
+             data.reason is string && data.reason.size() >= 1 && data.reason.size() <= 1000 &&
+             data.impactScope is string && data.impactScope.size() >= 1 && data.impactScope.size() <= 400 &&
+             data.riskLevel is string && data.riskLevel in ['LOW', 'MEDIUM', 'HIGH'] &&
+             data.proposer is string && data.proposer.size() >= 1 && data.proposer.size() <= 80 &&
+             data.status is string && data.status in ['PENDING', 'APPROVED', 'REJECTED'] &&
+             data.versionTag is string && data.versionTag.size() >= 1 && data.versionTag.size() <= 20 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidAuditLog(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             data.eventType is string && data.eventType.size() >= 1 && data.eventType.size() <= 60 &&
+             data.actor is string && data.actor.size() >= 1 && data.actor.size() <= 80 &&
+             data.channelId is string && data.channelId.size() <= 128 &&
+             data.summary is string && data.summary.size() >= 1 && data.summary.size() <= 500 &&
+             data.severity is string && data.severity in ['INFO', 'WARNING', 'CRITICAL'] &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    match /users/{userId}/global_policy/{policyId} {
+      allow get: if isOwner(userId) && isValidId(policyId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) &&
+                       isValidId(policyId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll([
+                         'userId', 'version', 'minResolution', 'requireRightsCheck',
+                         'requireOwnerApprovalForPrompts', 'textGen', 'imageGen', 'videoGen',
+                         'audioGen', 'aiAnalysis', 'aiEnhancement', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'version', 'minResolution', 'requireRightsCheck',
+                         'requireOwnerApprovalForPrompts', 'textGen', 'imageGen', 'videoGen',
+                         'audioGen', 'aiAnalysis', 'aiEnhancement', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidGlobalPolicy(incoming());
+      allow update: if isOwner(userId) &&
+                       isValidId(policyId) &&
+                       isValidGlobalPolicy(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'version', 'minResolution', 'requireRightsCheck',
+                         'requireOwnerApprovalForPrompts', 'textGen', 'imageGen', 'videoGen',
+                         'audioGen', 'aiAnalysis', 'aiEnhancement', 'updatedAt'
+                       ]);
+      allow delete: if isOwner(userId) && isValidId(policyId);
+    }
+
+    match /users/{userId}/channels/{channelId} {
+      allow get: if isOwner(userId) && isValidId(channelId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) &&
+                       isValidId(channelId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll([
+                         'userId', 'name', 'category', 'description', 'systemPrompt', 'promptVersion',
+                         'previousSystemPrompt', 'minResolution', 'editingPriority',
+                         'textGen', 'imageGen', 'videoGen', 'audioGen', 'aiAnalysis', 'aiEnhancement',
+                         'styleVisual', 'styleTempo', 'styleAudio', 'styleConfidence', 'productionsCount',
+                         'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'name', 'category', 'description', 'systemPrompt', 'promptVersion',
+                         'previousSystemPrompt', 'minResolution', 'editingPriority',
+                         'textGen', 'imageGen', 'videoGen', 'audioGen', 'aiAnalysis', 'aiEnhancement',
+                         'styleVisual', 'styleTempo', 'styleAudio', 'styleConfidence', 'productionsCount',
+                         'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidChannel(incoming());
+      allow update: if isOwner(userId) &&
+                       isValidId(channelId) &&
+                       isValidChannel(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'name', 'category', 'description', 'minResolution', 'editingPriority',
+                           'textGen', 'imageGen', 'videoGen', 'audioGen', 'aiAnalysis', 'aiEnhancement',
+                           'styleVisual', 'styleTempo', 'styleAudio', 'styleConfidence', 'productionsCount',
+                           'updatedAt'
+                         ]) ||
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'systemPrompt', 'promptVersion', 'previousSystemPrompt', 'updatedAt'
+                         ]) ||
+                         incoming().diff(existing()).affectedKeys().hasOnly(['productionsCount', 'updatedAt'])
+                       );
+      allow delete: if isOwner(userId) && isValidId(channelId);
+    }
+
+    match /users/{userId}/workflows/{workflowId} {
+      allow get: if isOwner(userId) && isValidId(workflowId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) &&
+                       isValidId(workflowId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll([
+                         'userId', 'channelId', 'channelName', 'name', 'triggerType', 'lifecycleState',
+                         'branchMode', 'caslJson', 'currentStepIndex', 'totalSteps', 'lastQualityGate',
+                         'lastTraceSummary', 'version', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'channelId', 'channelName', 'name', 'triggerType', 'lifecycleState',
+                         'branchMode', 'caslJson', 'currentStepIndex', 'totalSteps', 'lastQualityGate',
+                         'lastTraceSummary', 'version', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidWorkflow(incoming());
+      allow update: if isOwner(userId) &&
+                       isValidId(workflowId) &&
+                       isValidWorkflow(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'lifecycleState', 'currentStepIndex', 'lastQualityGate', 'lastTraceSummary', 'updatedAt'
+                         ]) ||
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'name', 'triggerType', 'branchMode', 'caslJson', 'totalSteps', 'version', 'updatedAt'
+                         ])
+                       );
+      allow delete: if isOwner(userId) && isValidId(workflowId);
+    }
+
+    match /users/{userId}/skills/{skillId} {
+      allow get: if isOwner(userId) && isValidId(skillId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) &&
+                       isValidId(skillId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll([
+                         'userId', 'name', 'level', 'branch', 'requiredCapability', 'fallbackStrategy',
+                         'inputSchemaSummary', 'outputSchemaSummary', 'version', 'enabled', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'name', 'level', 'branch', 'requiredCapability', 'fallbackStrategy',
+                         'inputSchemaSummary', 'outputSchemaSummary', 'version', 'enabled', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidSkill(incoming());
+      allow update: if isOwner(userId) &&
+                       isValidId(skillId) &&
+                       isValidSkill(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'enabled', 'version', 'fallbackStrategy', 'updatedAt'
+                       ]);
+      allow delete: if isOwner(userId) && isValidId(skillId);
+    }
+
+    match /users/{userId}/assets/{assetId} {
+      allow get: if isOwner(userId) && isValidId(assetId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) &&
+                       isValidId(assetId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll([
+                         'userId', 'channelId', 'title', 'assetType', 'resolution', 'qualityScore',
+                         'rightsStatus', 'provenanceChain', 'tags', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'channelId', 'title', 'assetType', 'resolution', 'qualityScore',
+                         'rightsStatus', 'provenanceChain', 'tags', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidAsset(incoming());
+      allow update: if isOwner(userId) &&
+                       isValidId(assetId) &&
+                       isValidAsset(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'title', 'rightsStatus', 'qualityScore', 'provenanceChain', 'tags', 'updatedAt'
+                       ]);
+      allow delete: if isOwner(userId) && isValidId(assetId);
+    }
+
+    match /users/{userId}/proposals/{proposalId} {
+      allow get: if isOwner(userId) && isValidId(proposalId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) &&
+                       isValidId(proposalId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().status == 'PENDING' &&
+                       incoming().keys().hasAll([
+                         'userId', 'channelId', 'targetType', 'targetId', 'title', 'currentValue',
+                         'proposedValue', 'reason', 'impactScope', 'riskLevel', 'proposer', 'status',
+                         'versionTag', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'channelId', 'targetType', 'targetId', 'title', 'currentValue',
+                         'proposedValue', 'reason', 'impactScope', 'riskLevel', 'proposer', 'status',
+                         'versionTag', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidProposal(incoming());
+      allow update: if isOwner(userId) &&
+                       isValidId(proposalId) &&
+                       isValidProposal(incoming()) &&
+                       existing().status == 'PENDING' &&
+                       incoming().status in ['APPROVED', 'REJECTED'] &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']);
+      allow delete: if isOwner(userId) && isValidId(proposalId);
+    }
+
+    match /users/{userId}/audit_logs/{logId} {
+      allow get: if isOwner(userId) && isValidId(logId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) &&
+                       isValidId(logId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll([
+                         'userId', 'eventType', 'actor', 'channelId', 'summary', 'severity', 'createdAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'eventType', 'actor', 'channelId', 'summary', 'severity', 'createdAt'
+                       ]) &&
+                       isValidAuditLog(incoming());
+      allow update: if false; // Audit logs are immutable
+      allow delete: if isOwner(userId) && isValidId(logId);
+    }
+  }
+}
